@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="../../favicon.svg">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Vom Notizzettel zum Argument</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Layout: Kopfzeile wie die Fachschaftsblätter, darunter Figurwahl, Schrittleiste und eine Arbeitsfläche pro Schritt */
+:root{
+  --bg:#ffffff; --ink:#5A6B00; --accent:#97B400; --tint:#F3F8E2; --line:#D3E19C;
+  --muted:#76804F; --field:#ffffff; --err:#9E3A26; --err-bg:#FBEEEA; --ok-bg:#EAF3CF;
+  --font:Calibri,"Carlito","Segoe UI",Arial,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:17px;line-height:1.45}
+.wrap{max-width:980px;margin:0 auto;padding-block:12px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.kopf{display:flex;justify-content:space-between;gap:12px;font-size:14px;border-bottom:1.5px solid var(--accent);padding-bottom:6px}
+h1{font-size:30px;line-height:1.15;margin:18px 0 6px;text-wrap:balance}
+h2{font-size:21px;margin:0;text-wrap:balance}
+h3{font-size:17px;margin:0 0 6px}
+p{margin:0}
+.sub{color:var(--muted);font-size:15px}
+.ctrl{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:end;margin:16px 0 14px}
+.lbl{display:block;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+button{font:inherit;color:inherit;cursor:pointer}
+.segb{border:1.5px solid var(--accent);background:var(--bg);border-radius:999px;padding:5px 14px;font-weight:700}
+.segb[aria-pressed="true"]{background:var(--accent);color:#fff}
+input[type=text],textarea,select{font:inherit;color:var(--ink);background:var(--field);border:1.5px solid var(--line);border-radius:6px;padding:7px 9px;width:100%}
+textarea{resize:vertical;min-height:84px}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.name{min-width:220px;flex:1;max-width:340px}
+.steps{list-style:none;margin:0 0 16px;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.steps button{display:flex;gap:7px;align-items:center;border:1.5px solid var(--line);background:var(--bg);border-radius:8px;padding:5px 11px;font-size:15px}
+.steps .n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--tint);font-weight:700;font-size:13px}
+.steps button[aria-current="step"]{border-color:var(--accent);background:var(--tint);font-weight:700}
+.steps button[aria-current="step"] .n{background:var(--accent);color:#fff}
+.panel{border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+.bar{background:var(--tint);padding:11px 16px;display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
+.time{font-size:14px;color:var(--muted)}
+.body{padding:16px;display:flex;flex-direction:column;gap:16px}
+.legend{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1.5px solid var(--accent);border-bottom:1px solid var(--line)}
+.legend div{padding:7px 8px;font-size:14px}
+.legend b{display:block;font-size:15px}
+.cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.col{min-width:0;display:flex;flex-direction:column;gap:8px}
+.colh{font-weight:700;border-bottom:1.5px solid var(--accent);padding-bottom:3px}
+.colh small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.note{display:flex;flex-direction:column;gap:5px;padding:8px;background:var(--tint);border-radius:7px}
+.chips{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.chip{border:1.5px solid var(--accent);background:var(--bg);border-radius:5px;min-width:30px;padding:1px 7px;font-weight:700;font-size:14px}
+.chip[aria-pressed="true"]{background:var(--accent);color:#fff}
+.del{margin-left:auto;border:0;background:none;color:var(--muted);font-size:13px;text-decoration:underline}
+.add{align-self:flex-start;border:1.5px dashed var(--accent);background:var(--bg);border-radius:6px;padding:4px 10px;font-size:15px}
+.opts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.opt{display:flex;gap:10px;align-items:center;text-align:left;border:1.5px solid var(--line);background:var(--bg);border-radius:8px;padding:10px 12px;min-height:58px}
+.opt .box{flex:none;width:18px;height:18px;border:1.5px solid var(--accent);border-radius:3px;display:grid;place-items:center;font-size:13px;color:#fff}
+.opt[aria-pressed="true"]{border-color:var(--accent);background:var(--tint)}
+.opt[aria-pressed="true"] .box{background:var(--accent)}
+.opt.ok{border-color:var(--accent);background:var(--ok-bg)}
+.opt.bad{border-color:var(--err);background:var(--err-bg)}
+.btn{border:0;background:var(--accent);color:#fff;font-weight:700;border-radius:7px;padding:8px 16px}
+.btn2{border:1.5px solid var(--accent);background:var(--bg);font-weight:700;border-radius:7px;padding:6px 14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.msg{border-radius:8px;padding:10px 12px;font-size:16px}
+.msg.ok{background:var(--ok-bg);border:1.5px solid var(--accent)}
+.msg.bad{background:var(--err-bg);border:1.5px solid var(--err);color:var(--err)}
+.msg.info{background:var(--tint)}
+.msg ul{margin:6px 0 0;padding-left:20px}
+.assign{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.assign div{border:1.5px solid var(--accent);border-radius:8px;padding:8px 10px}
+.assign small{display:block;font-size:13px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.hyp{background:var(--tint);border-radius:8px;padding:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;line-height:2}
+.hyp input{width:auto;flex:1 1 220px}
+.preview{border-left:0;padding:10px 12px;border:1.5px dashed var(--accent);border-radius:8px}
+.preview .lbl{margin-bottom:2px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:16px}
+.aside{background:var(--tint);border-radius:8px;padding:12px;font-size:15px;align-self:start}
+.aside ul{margin:6px 0 0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:5px}
+.tag{display:inline-block;min-width:22px;text-align:center;font-weight:700;font-size:12px;background:var(--accent);color:#fff;border-radius:4px;padding:0 4px;margin-right:6px}
+.tag.none{background:var(--line);color:var(--ink)}
+.block{border:1.5px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.block .head{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
+.role{font-size:13px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.builder{background:var(--tint);border-radius:8px;padding:10px;display:grid;grid-template-columns:200px minmax(0,1fr);gap:8px;align-items:end}
+.builder .full{grid-column:1/-1}
+.starter{border:1.5px solid var(--accent);background:var(--bg);border-radius:999px;padding:3px 11px;font-size:14px}
+details{border:1.5px solid var(--accent);border-radius:8px}
+summary{cursor:pointer;background:var(--tint);padding:9px 12px;font-weight:700;border-radius:7px}
+details[open] summary{border-radius:7px 7px 0 0}
+.kasten{padding:12px;display:flex;flex-direction:column;gap:10px;font-size:16px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;vertical-align:top;padding:6px 8px;border-bottom:1px solid var(--line)}
+th{background:var(--tint)}
+.crit{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 14px;align-items:center}
+.crit label{display:flex;gap:9px;align-items:flex-start}
+.crit input[type=checkbox]{width:19px;height:19px;accent-color:var(--accent);flex:none;margin-top:3px}
+.readonly{background:var(--tint);border-radius:8px;padding:12px;white-space:pre-wrap;min-height:60px}
+.out{white-space:pre-wrap;background:var(--tint);border-radius:8px;padding:12px;font-size:15px;max-height:340px;overflow:auto;user-select:text}
+.nav{display:flex;justify-content:space-between;gap:10px;padding:0 16px 16px}
+.export{margin-top:16px;border:1.5px solid var(--accent);border-radius:10px;padding:12px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.export .lbl{margin:0 6px 0 0}
+#expbox{margin-top:8px;min-height:160px;font-size:14px}
+.foot{margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:14px;color:var(--muted)}
+.link{border:0;background:none;text-decoration:underline;color:var(--muted);padding:0}
+@media (max-width:760px){
+  .cols,.opts{grid-template-columns:minmax(0,1fr)}
+  .legend{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .two,.builder,.crit,.assign{grid-template-columns:minmax(0,1fr)}
+  h1{font-size:25px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kopf"><span>FOSBOS Weiden · Fachschaft Deutsch</span><span>Der Gott des Gemetzels</span></div>
+  <h1>Vom Notizzettel zum Argument</h1>
+  <p class="sub">Aus Ihren Filmnotizen entstehen Schritt für Schritt eine Deutungshypothese und zwei Argumente. Ihre Eingaben bleiben in diesem Browser gespeichert.</p>
+
+  <div class="ctrl">
+    <div>
+      <span class="lbl" id="figlbl">Ihre Figur</span>
+      <div class="seg" role="group" aria-labelledby="figlbl" id="figs"></div>
+    </div>
+    <div class="name">
+      <label class="lbl" for="name">Name</label>
+      <input type="text" id="name" autocomplete="off" placeholder="Vor- und Nachname">
+    </div>
+  </div>
+
+  <ol class="steps" id="steps" aria-label="Schritte"></ol>
+  <section class="panel" id="panel" aria-live="polite"></section>
+
+  <div class="export" aria-label="Ergebnis sichern">
+    <span class="lbl">Ergebnis sichern</span>
+    <button class="btn" data-act="pdf" id="pdfbtn" hidden>Als PDF speichern</button>
+    <button class="btn2" data-act="copytxt">Als Text kopieren</button>
+    <span id="expmsg" class="sub" role="status"></span>
+    <textarea id="expbox" readonly hidden aria-label="Ergebnis als Text"></textarea>
+  </div>
+
+  <div class="foot">
+    <span id="savestate">Entwurf wird automatisch gespeichert.</span>
+    <span id="resetzone"><button class="link" data-act="reset">Eingaben zu dieser Figur löschen</button></span>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const STEPS=[
+ {t:'Notizen ordnen',m:'ca. 8 Minuten'},
+ {t:'Pole wählen',m:'ca. 8 Minuten'},
+ {t:'Deutungshypothese',m:'ca. 4 Minuten'},
+ {t:'Argument mit Hilfen',m:'ca. 12 Minuten'},
+ {t:'Argument ohne Hilfen',m:'ca. 10 Minuten'},
+ {t:'Gegenprobe',m:'ca. 7 Minuten'},
+ {t:'Hausaufgabe',m:'zu Hause'}
+];
+const KAT=[['V','Verhalten','Was die Figur tut'],['D','Denken und Empfinden','Was in ihr vorgeht (im Film nur erschlossen)'],['Ä','Äußerungen','Was und wie sie spricht'],['B','Beziehungen','Wie sie zu anderen steht'],['E','Entwicklung','Wie sie sich verändert']];
+const KATPH={V:[['ihrem','seinem'],'Verhalten'],D:[['ihrem','seinem'],'Denken und Empfinden'],'Ä':[['ihren','seinen'],'Äußerungen'],B:[['ihren','seinen'],'Beziehungen'],E:[['ihrer','seiner'],'Entwicklung']};
+const TYP={
+ handlung:'Das ist eine Handlung. Sie kann einen Pol belegen, ist aber selbst kein Wunsch und keine Haltung.',
+ aeusser:'Das ist ein äußerer Konflikt zwischen Figuren. Gesucht ist der Widerspruch in der Figur selbst.',
+ thema:'Das ist ein Thema des ganzen Films, kein Wunsch und keine Haltung dieser Figur.',
+ fremd:'Das passt zu einer anderen Figur, nicht zu {F}.'
+};
+const FIG={
+ Penelope:{gen:'Penelopes',m:0,pron:'Sie',poles:[1,4],opts:[
+   {t:'Gewalt unter Kindern',k:'thema'},{t:'Anspruch auf Anstand und Harmonie',k:'pol',v:'zeigt'},{t:'Beschimpfung von Nancys Sohn',k:'handlung'},
+   {t:'Rückzug in den Beruf',k:'fremd'},{t:'aufgestaute Wut',k:'pol',v:'zeigt'},{t:'Streit mit den Cowans',k:'aeusser'}]},
+ Michael:{gen:'Michaels',m:1,pron:'Er',poles:[3,1],opts:[
+   {t:'Aussetzen des Hamsters',k:'handlung'},{t:'Gleichgültigkeit und Verachtung',k:'pol',v:'zeigen'},{t:'Zerfall guter Umgangsformen',k:'thema'},
+   {t:'Rolle des lockeren Gastgebers',k:'pol',v:'zeigt'},{t:'Streit mit Alan über das Medikament',k:'aeusser'},{t:'Rückzug in den Beruf',k:'fremd'}]},
+ Nancy:{gen:'Nancys',m:0,pron:'Sie',poles:[0,5],opts:[
+   {t:'Wunsch nach Höflichkeit und Vermittlung',k:'pol',v:'zeigt'},{t:'Ehestreit mit Alan',k:'aeusser'},{t:'Handy in der Tulpenvase',k:'handlung'},
+   {t:'Verantwortung der Eltern',k:'thema'},{t:'Rolle des lockeren Gastgebers',k:'fremd'},{t:'aufgestaute Wut',k:'pol',v:'zeigt'}]},
+ Alan:{gen:'Alans',m:1,pron:'Er',poles:[5,2],opts:[
+   {t:'Telefonate während des Gesprächs',k:'handlung'},{t:'Anspruch auf Anstand und Harmonie',k:'fremd'},{t:'Bedürfnis, sich im Streit zu behaupten',k:'pol',v:'zeigt',c:true},
+   {t:'Macht der Pharmaindustrie',k:'thema'},{t:'Streit mit Michael',k:'aeusser'},{t:'Rückzug in Beruf und Distanz',k:'pol',v:'zeigt'}]}
+};
+const NAMES=Object.keys(FIG);
+const blankNote=()=>({t:'',c:''});
+const fresh=()=>({notes:{L:[blankNote(),blankNote(),blankNote()],R:[blankNote(),blankNote(),blankNote()],M:[blankNote(),blankNote(),blankNote()]},
+  sel:[],checked:false,swap:false,why:'',whyText:'',whyShown:false,hypA:'',hypB:'',pol:0,bKat:'',bEig:'',tt:'',beleg:'',bezug:'',free:'',crit:[false,false,false],tips:['','',''],einl:'',abs1:'',abs2:''});
+
+let APP={fig:'Penelope',step:0,name:'',data:{}};
+const KEY='notizzettel-argument-v1';
+try{const raw=localStorage.getItem(KEY); if(raw){const o=JSON.parse(raw); if(o&&o.data) APP=Object.assign(APP,o);}}catch(e){}
+NAMES.forEach(n=>{ if(!APP.data[n]) APP.data[n]=fresh(); else APP.data[n]=Object.assign(fresh(),APP.data[n]); });
+if(!FIG[APP.fig]) APP.fig='Penelope';
+let saveTimer=null;
+function save(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(APP));setSaved('Entwurf gespeichert.');}catch(e){setSaved('Speichern in diesem Browser nicht möglich. Kopieren Sie Ihr Ergebnis in Schritt 7.');}},300);}
+function setSaved(t){document.getElementById('savestate').textContent=t;}
+const S=()=>APP.data[APP.fig];
+const F=()=>FIG[APP.fig];
+const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function solved(){const s=S(),f=F();return s.checked&&s.sel.length===2&&s.sel.every(i=>f.opts[i].k==='pol');}
+function polePair(){const f=F();const p=[f.poles[0],f.poles[1]];return S().swap?[p[1],p[0]]:p;} // [links, rechts]
+function poleText(i){return F().opts[i].t;}
+function sideOfPole(k){return k===0?'L':'R';} // k = index in polePair
+
+function renderFigs(){
+  document.getElementById('figs').innerHTML=NAMES.map(n=>`<button class="segb" data-act="fig" data-v="${n}" aria-pressed="${n===APP.fig}">${n}</button>`).join('');
+}
+function renderSteps(){
+  document.getElementById('steps').innerHTML=STEPS.map((s,i)=>`<li><button data-act="go" data-v="${i}" ${i===APP.step?'aria-current="step"':''}><span class="n">${i+1}</span>${s.t}</button></li>`).join('');
+}
+function header(i,intro){
+  return `<div class="bar"><h2>Schritt ${i+1} · ${STEPS[i].t}</h2><span class="time">${STEPS[i].m}</span></div><div class="body">${intro?`<p>${intro}</p>`:''}`;
+}
+function navHTML(){
+  const i=APP.step;
+  return `</div><div class="nav"><button class="btn2" data-act="go" data-v="${i-1}" ${i===0?'hidden':''}>Zurück</button><span></span><button class="btn" data-act="go" data-v="${i+1}" ${i===STEPS.length-1?'hidden':''}>Weiter zu Schritt ${i+2}</button></div>`;
+}
+function needSolved(){
+  return `<div class="msg info">Lösen Sie zuerst Schritt 2: Wenn Ihre beiden Pole stimmen, erscheinen sie hier. <button class="btn2" data-act="go" data-v="1">Zu Schritt 2</button></div>`;
+}
+
+/* Schritt 1 */
+function noteRow(list,i,n){
+  const ph=list==='M'?'z. B. höflich: bietet Kaffee und Kuchen an':'Schlagwort und Szene';
+  return `<div class="note"><label class="sr" for="n-${list}-${i}" hidden>Notiz ${i+1}</label>
+   <input type="text" id="n-${list}-${i}" data-bind="notes.${list}.${i}.t" value="${esc(n.t)}" placeholder="${ph}">
+   <div class="chips" role="group" aria-label="Kategorie">${KAT.map(k=>`<button class="chip" data-act="cat" data-l="${list}" data-i="${i}" data-v="${k[0]}" aria-pressed="${n.c===k[0]}" title="${k[1]}">${k[0]}</button>`).join('')}
+   <button class="del" data-act="delnote" data-l="${list}" data-i="${i}">entfernen</button></div></div>`;
+}
+function r1(){
+  const s=S(),ok=solved(),pp=polePair();
+  const head=(side)=> ok?`<small>${esc(poleText(side==='L'?pp[0]:pp[1]))}</small>`:'<small>Pol wird in Schritt 2 benannt</small>';
+  const col=(list,title,sub)=>`<div class="col"><div class="colh">${title}${sub}</div>${s.notes[list].map((n,i)=>noteRow(list,i,n)).join('')}<button class="add" data-act="addnote" data-l="${list}">+ Zeile</button></div>`;
+  return header(0,'Tragen Sie Ihre Notizen aus der Waage und Ihre Figurenmerkmale (Aufgabe 2) ein. Ordnen Sie jedem Eintrag eine Kategorie zu.')+
+   `<div class="legend">${KAT.map(k=>`<div><b>${k[0]} ${k[1]}</b>${k[2]}</div>`).join('')}</div>
+    <div class="cols">${col('L','Linke Schale',head('L'))}${col('R','Rechte Schale',head('R'))}${col('M','Figurenmerkmale','<small>Eigenschaft und woran erkennbar</small>')}</div>`+navHTML();
+}
+
+/* Schritt 2 */
+function r2(){
+  const s=S(),f=F(),ok=solved();
+  let fb='';
+  if(s.checked){
+    if(ok){
+      const pp=polePair();
+      fb=`<div class="msg ok"><b>Richtig.</b> Diese beiden Pole bilden zusammen den inneren Konflikt von ${APP.fig}. Ordnen Sie sie Ihren Waagschalen zu:</div>
+      <div class="assign"><div><small>Linke Schale</small>${esc(poleText(pp[0]))}</div><div><small>Rechte Schale</small>${esc(poleText(pp[1]))}</div></div>
+      <div class="row"><button class="btn2" data-act="swap">Seiten tauschen</button></div>`;
+    } else {
+      const bad=s.sel.filter(i=>f.opts[i].k!=='pol');
+      fb=`<div class="msg bad"><b>Noch nicht.</b>${s.sel.length<2?' Wählen Sie genau zwei Möglichkeiten.':''}<ul>${bad.map(i=>`<li><b>${esc(f.opts[i].t)}:</b> ${TYP[f.opts[i].k].replace('{F}',APP.fig)}</li>`).join('')}${s.sel.filter(i=>f.opts[i].k==='pol').map(i=>`<li><b>${esc(f.opts[i].t)}:</b> Das passt.</li>`).join('')}</ul></div>`;
+    }
+  }
+  let why='';
+  if(ok){
+    const others=f.opts.map((o,i)=>({o,i})).filter(x=>x.o.k!=='pol');
+    const chosen=s.why!==''?f.opts[+s.why]:null;
+    why=`<div class="block"><h3>Warum ist eine der anderen Möglichkeiten kein Pol?</h3>
+     <label class="lbl" for="why">Möglichkeit</label>
+     <select id="why" data-bind="why" data-rerender="1"><option value="">Bitte wählen</option>${others.map(x=>`<option value="${x.i}" ${String(x.i)===String(s.why)?'selected':''}>${esc(x.o.t)}</option>`).join('')}</select>
+     <label class="lbl" for="whyText">Ihre Begründung</label>
+     <textarea id="whyText" data-bind="whyText" placeholder="Das ist kein Pol, weil …">${esc(s.whyText)}</textarea>
+     <div class="row"><button class="btn2" data-act="whyshow" ${chosen?'':'disabled'}>Mit Erklärung vergleichen</button></div>
+     ${s.whyShown&&chosen?`<div class="msg info">${TYP[chosen.k].replace('{F}',APP.fig)}</div>`:''}</div>`;
+  }
+  return header(1,`Nur zwei dieser sechs Möglichkeiten bilden zusammen den inneren Konflikt von ${APP.fig}. Wählen Sie sie aus und prüfen Sie Ihre Wahl.`)+
+   `<div class="opts">${f.opts.map((o,i)=>{const on=s.sel.includes(i);const cls=s.checked&&on?(o.k==='pol'?' ok':' bad'):'';return `<button class="opt${cls}" data-act="opt" data-v="${i}" aria-pressed="${on}"><span class="box">${on?'✓':''}</span>${esc(o.t)}</button>`}).join('')}</div>
+    <div class="row"><button class="btn" data-act="check">Wahl prüfen</button></div>${fb}${why}`+navHTML();
+}
+
+/* Schritt 3 */
+function hypSentence(){const s=S();return `${APP.fig} ist geprägt durch den Widerspruch zwischen ${s.hypA||'…'} und ${s.hypB||'…'}.`;}
+function r3(){
+  const s=S(),ok=solved(),pp=polePair();
+  return header(2,'Setzen Sie Ihre beiden Pole in das Satzgerüst ein. Sie können sie dabei grammatisch anpassen, zum Beispiel „ihrem Anspruch auf …“.')+
+   `<div class="hyp"><b>${APP.fig}</b> ist geprägt durch den Widerspruch zwischen
+     <input type="text" id="hypA" data-bind="hypA" value="${esc(s.hypA)}" aria-label="erster Pol" placeholder="erster Pol"> und
+     <input type="text" id="hypB" data-bind="hypB" value="${esc(s.hypB)}" aria-label="zweiter Pol" placeholder="zweiter Pol">.</div>
+    ${ok?`<div class="row"><span class="sub">Ihre Pole einsetzen:</span>${pp.map(i=>`<button class="starter" data-act="fillhyp" data-v="${i}">${esc(poleText(i))}</button>`).join('')}</div>`:needSolved()}
+    <div class="preview"><span class="lbl">Ihre Deutungshypothese</span><span id="hypOut">${esc(hypSentence())}</span></div>`+navHTML();
+}
+
+/* Schritt 4 */
+function notesAside(k,title){
+  const s=S(),side=sideOfPole(k);
+  const li=(n)=>`<li><span class="tag ${n.c?'':'none'}">${n.c||'?'}</span>${esc(n.t)}</li>`;
+  const ns=s.notes[side].filter(n=>n.t.trim()), ms=s.notes.M.filter(n=>n.t.trim());
+  return `<aside class="aside"><h3>${title}</h3><b>Schale zu diesem Pol</b><ul>${ns.length?ns.map(li).join(''):'<li>Noch keine Notizen in Schritt 1.</li>'}</ul>
+   <b style="display:block;margin-top:10px">Figurenmerkmale</b><ul>${ms.length?ms.map(li).join(''):'<li>Noch keine Einträge in Schritt 1.</li>'}</ul></aside>`;
+}
+function buildTT(){
+  const s=S(),f=F(),pp=polePair(),o=f.opts[pp[s.pol]];
+  if(!s.bKat) return '';
+  const k=KATPH[s.bKat];
+  return `${f.gen} ${o.t}${o.c?',':''} ${o.v} sich in ${k[0][f.m]} ${k[1]}: ${f.pron} ist ${s.bEig.trim()||'…'}.`;
+}
+function kasten(){
+  return `<details><summary>Rückbindung: Wann ist der Bezug zum Gegenpol sinnvoll?</summary><div class="kasten">
+   <p>Ein Schlusssatz, der nur die Teilthese wiederholt, ist überflüssig. Sinnvoll ist er, wenn er den <b>anderen Pol</b> ins Spiel bringt. Denn die Deutungshypothese besteht aus beiden Polen; erst so wird der Abschnitt an sie zurückgebunden.</p>
+   <div class="tbl"><table><thead><tr><th>Möglichkeit</th><th>Beispiel aus „Kitamakura“ (Naski)</th></tr></thead><tbody>
+   <tr><td><b>Widerspruch zeigen:</b> Der Befund passt nicht zum anderen Pol.</td><td>Ihr Luftsprung widerspricht der Verbeugung, mit der sie sich eben noch von den Eltern verabschiedet hat.</td></tr>
+   <tr><td><b>Gewichten:</b> Welcher Pol setzt sich hier durch?</td><td>Hier siegt die Pflicht: Statt die Mutter zu umarmen, verbeugt sie sich.</td></tr>
+   <tr><td><b>Überleiten:</b> Der Satz führt zum anderen Pol.</td><td>Dass Naskis Wunsch nach Freiheit nicht ungebrochen bleibt, zeigt ihr Verhalten gegenüber der Familie.</td></tr></tbody></table></div>
+   <p><b>Nicht so:</b> „Damit ist gezeigt, dass Naski frei sein will.“ Dieser Satz wiederholt nur die Teilthese.</p></div></details>`;
+}
+function r4(){
+  const s=S(),ok=solved();
+  if(!ok) return header(3,'')+needSolved()+navHTML();
+  const pp=polePair(),gegen=poleText(pp[1-s.pol]);
+  return header(3,'Wählen Sie einen Pol. Die Hilfen und Satzanfänge sind Angebote, Sie können frei formulieren.')+
+   `<div class="row" role="radiogroup" aria-label="Pol für dieses Argument">${pp.map((i,k)=>`<button class="segb" data-act="pol" data-v="${k}" aria-pressed="${s.pol===k}">${esc(poleText(i))}</button>`).join('')}</div>
+   <div class="two"><div class="col" style="gap:12px">
+    <div class="block"><div class="head"><h3>Teilthese mit Figurenmerkmal</h3><span class="role">Behauptung</span></div>
+     <p class="sub">Ein Satz: der Pol und das Figurenmerkmal, an dem man ihn erkennt.</p>
+     <div class="builder">
+      <div><label class="lbl" for="bKat">Kategorie</label><select id="bKat" data-bind="bKat"><option value="">Bitte wählen</option>${KAT.map(k=>`<option value="${k[0]}" ${s.bKat===k[0]?'selected':''}>${k[0]} ${k[1]}</option>`).join('')}</select></div>
+      <div><label class="lbl" for="bEig">Eigenschaft</label><input type="text" id="bEig" data-bind="bEig" value="${esc(s.bEig)}" placeholder="z. B. verletzend"></div>
+      <div class="full preview"><span class="lbl">Satzbaukasten</span><span id="ttOut">${esc(buildTT()||'Wählen Sie eine Kategorie und tragen Sie eine Eigenschaft ein.')}</span></div>
+      <div class="full"><button class="btn2" data-act="takeTT">In das Feld übernehmen</button></div>
+     </div>
+     <textarea id="tt" data-bind="tt" aria-label="Teilthese mit Figurenmerkmal" placeholder="Ihre Teilthese mit Figurenmerkmal">${esc(s.tt)}</textarea></div>
+    <div class="block"><div class="head"><h3>Beleg</h3><span class="role">Beleg</span></div>
+     <p class="sub">Die Szene, so genau, dass man im Film darauf zeigen kann.</p>
+     <div class="row"><button class="starter" data-act="starter" data-f="beleg" data-v="Das zeigt die Szene, in der ">Das zeigt die Szene, in der …</button></div>
+     <textarea id="beleg" data-bind="beleg" aria-label="Beleg">${esc(s.beleg)}</textarea></div>
+    <div class="block"><div class="head"><h3>Bezug zum Gegenpol</h3><span class="role">Schluss</span></div>
+     <p class="sub">Gegenpol: <b>${esc(gegen)}</b>. Nennen Sie ihn ausdrücklich.</p>
+     <div class="row"><button class="starter" data-act="starter" data-f="bezug" data-v="Das steht im Widerspruch zu ">Widerspruch: Das steht im Widerspruch zu …</button><button class="starter" data-act="starter" data-f="bezug" data-v="Hier setzt sich ">Gewichten: Hier setzt sich … gegen … durch.</button><button class="starter" data-act="starter" data-f="bezug" data-v="Dass dies nicht alles ist, zeigt ">Überleiten: Dass dies nicht alles ist, zeigt …</button></div>
+     <textarea id="bezug" data-bind="bezug" aria-label="Bezug zum Gegenpol">${esc(s.bezug)}</textarea>
+     ${kasten()}</div>
+   </div>${notesAside(s.pol,'Ihre Notizen')}</div>`+navHTML();
+}
+
+/* Schritt 5 */
+function r5(){
+  const s=S(),ok=solved();
+  if(!ok) return header(4,'')+needSolved()+navHTML();
+  const pp=polePair(),k=1-s.pol;
+  return header(4,'Schreiben Sie ein Argument zum anderen Pol, diesmal ohne Hilfen: Teilthese mit Figurenmerkmal, Beleg, Bezug zum Gegenpol.')+
+   `<div class="two"><div class="col"><p><b>Pol:</b> ${esc(poleText(pp[k]))}</p>
+    <textarea id="free" data-bind="free" style="min-height:260px" aria-label="Argument zum anderen Pol">${esc(s.free)}</textarea></div>
+    ${notesAside(k,'Ihre Notizen')}</div>`+navHTML();
+}
+
+/* Schritt 6 */
+function r6(){
+  const s=S();
+  const C=['Die Teilthese nennt den Pol und ein Figurenmerkmal.','Der Beleg ist eine konkrete Szene.','Der Bezug zum Gegenpol nennt den anderen Pol und wiederholt nicht die Teilthese.'];
+  return header(5,'Ein Partner aus einer anderen Figurengruppe liest Ihr Argument aus Schritt 5, an Ihrem Gerät oder als PDF bzw. Text (Buttons unten), und füllt die Prüfung aus. Danach verbessern Sie Ihr Argument in Schritt 5.')+
+   `<div><span class="lbl">Argument aus Schritt 5</span><div class="readonly">${s.free.trim()?esc(s.free):'Noch kein Text in Schritt 5.'}</div></div>
+    <div class="crit">${C.map((c,i)=>`<label for="c${i}"><input type="checkbox" id="c${i}" data-bind="crit.${i}" ${s.crit[i]?'checked':''}>${c}</label>
+     <input type="text" id="tip${i}" data-bind="tips.${i}" value="${esc(s.tips[i])}" aria-label="Tipp des Partners zu Kriterium ${i+1}" placeholder="Tipp des Partners">`).join('')}</div>`+navHTML();
+}
+
+/* Schritt 7 */
+function arg1(){const s=S();return [s.tt,s.beleg,s.bezug].map(x=>x.trim()).filter(Boolean).join(' ');}
+/* Export: ein Modell für Text und PDF */
+const CRIT=['Die Teilthese nennt den Pol und ein Figurenmerkmal.','Der Beleg ist eine konkrete Szene.','Der Bezug zum Gegenpol nennt den anderen Pol und wiederholt nicht die Teilthese.'];
+const val=t=>(t&&String(t).trim())?String(t).trim():'–';
+function exportModel(){
+  const s=S(),f=F(),ok=solved(),pp=polePair();
+  const nl=list=>s.notes[list].filter(n=>n.t.trim()).map(n=>`[${n.c||'?'}] ${n.t.trim()}`);
+  const side=k=>ok?` (${poleText(pp[k])})`:'';
+  const secs=[];
+  secs.push({h:'Schritt 1 · Notizen',items:[
+    {l:'Linke Schale'+side(0),list:nl('L')},{l:'Rechte Schale'+side(1),list:nl('R')},{l:'Figurenmerkmale',list:nl('M')}]});
+  const st2=[{l:'Pole',t:ok?`${poleText(pp[0])} | ${poleText(pp[1])}`:'noch nicht gelöst'}];
+  if(ok&&s.why!=='') st2.push({l:`Kein Pol: ${f.opts[+s.why].t}`,t:val(s.whyText)});
+  secs.push({h:'Schritt 2 · Pole',items:st2});
+  secs.push({h:'Schritt 3 · Deutungshypothese',items:[{t:hypSentence()}]});
+  secs.push({h:'Schritt 4 · Argument mit Hilfen'+(ok?` (Pol: ${poleText(pp[s.pol])})`:''),items:[
+    {l:'Teilthese mit Figurenmerkmal',t:val(s.tt)},{l:'Beleg',t:val(s.beleg)},{l:'Bezug zum Gegenpol',t:val(s.bezug)}]});
+  secs.push({h:'Schritt 5 · Argument ohne Hilfen'+(ok?` (Pol: ${poleText(pp[1-s.pol])})`:''),items:[{t:val(s.free)}]});
+  secs.push({h:'Schritt 6 · Gegenprobe',items:CRIT.map((c,i)=>({l:`${s.crit[i]?'[x]':'[ ]'} ${c}`,t:s.tips[i].trim()?'Tipp: '+s.tips[i].trim():''}))});
+  secs.push({h:'Hausaufgabe',items:[{l:'Einleitung',t:val(s.einl)},{l:'Absatz 1',t:val(s.abs1)},{l:'Absatz 2',t:val(s.abs2)}]});
+  return {title:`Vom Notizzettel zum Argument · ${APP.fig}`,name:APP.name.trim()||'–',date:new Date().toLocaleDateString('de-DE'),secs};
+}
+function result(){
+  const m=exportModel(),L=[m.title,`Name: ${m.name} · Stand: ${m.date}`];
+  m.secs.forEach(sec=>{
+    L.push('',sec.h.toUpperCase());
+    sec.items.forEach(it=>{
+      if(it.list){L.push(it.l+':');L.push(...(it.list.length?it.list.map(x=>'  '+x):['  –']));}
+      else if(it.l){L.push(it.l+(it.t?': '+it.t:''));}
+      else L.push(it.t);
+    });
+  });
+  return L.join('\n');
+}
+function pdfText(t){
+  return String(t).replace(/[„“”″]/g,'"').replace(/[‚‘’′]/g,"'").replace(/…/g,'...').replace(/[–—]/g,'-').replace(/[^\n\x20-\x7E -ÿ]/g,'?');
+}
+function buildPDF(){
+  const {jsPDF}=window.jspdf, doc=new jsPDF({unit:'mm',format:'a4'});
+  const M=20,W=170,G=[90,107,0],A=[151,180,0],T=[243,248,226];
+  let y=0;
+  const head=()=>{doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...G);doc.text(pdfText('FOSBOS Weiden · Fachschaft Deutsch'),M,12);doc.text('Der Gott des Gemetzels',M+W,12,{align:'right'});doc.setDrawColor(...A);doc.setLineWidth(0.5);doc.line(M,14,M+W,14);y=24;};
+  const need=h=>{if(y+h>280){doc.addPage();head();}};
+  const lines=(t,size,style,indent=0,lh=5.2)=>{doc.setFont('helvetica',style);doc.setFontSize(size);doc.setTextColor(...G);
+    doc.splitTextToSize(pdfText(t),W-indent).forEach(l=>{need(lh);doc.text(l,M+indent,y);y+=lh;});};
+  const m=exportModel();
+  head();
+  lines(m.title,17,'bold',0,8);
+  lines(`Name: ${m.name}   ·   Stand: ${m.date}`,10,'normal');
+  y+=3;
+  m.secs.forEach(sec=>{
+    need(16); y+=2;
+    doc.setFillColor(...T);doc.rect(M,y-5,W,8,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(...G);doc.text(pdfText(sec.h),M+2,y+0.6);y+=8;
+    sec.items.forEach(it=>{
+      if(it.list){lines(it.l,10.5,'bold');(it.list.length?it.list:['–']).forEach(x=>lines(x,10.5,'normal',4));y+=1.5;}
+      else if(it.l){lines(it.l,10.5,'bold');if(it.t) lines(it.t,10.5,'normal',4);y+=1.5;}
+      else {lines(it.t,10.5,'normal');y+=1.5;}
+    });
+  });
+  const n=doc.getNumberOfPages();
+  for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(...G);doc.text(`Seite ${i} von ${n}`,M+W,290,{align:'right'});}
+  return doc;
+}
+function fileName(){
+  const clean=t=>String(t).normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/ß/g,'ss').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  return ['Notizzettel-Argument',clean(APP.fig),clean(APP.name)].filter(Boolean).join('_')+'.pdf';
+}
+let DL=null, PDFMODE='none';
+function expMsg(t){document.getElementById('expmsg').textContent=t;}
+function initExport(){
+  const btn=document.getElementById('pdfbtn');
+  if(!window.jspdf){btn.hidden=true;return;}
+  if(window.claude&&typeof window.claude.use==='function'){
+    window.claude.use('downloads').then(d=>{DL=d;PDFMODE=d?'claude':'none';btn.hidden=!d;}).catch(()=>{btn.hidden=true;});
+  } else {PDFMODE='local';btn.hidden=false;}
+}
+function savePDF(){
+  let doc;
+  try{doc=buildPDF();}catch(e){expMsg('Das PDF konnte nicht erstellt werden. Nutzen Sie „Als Text kopieren“.');return;}
+  const name=fileName();
+  if(PDFMODE==='local'){doc.save(name);expMsg('PDF wird gespeichert.');return;}
+  if(!DL){expMsg('PDF ist hier nicht verfügbar. Nutzen Sie „Als Text kopieren“.');return;}
+  DL.save({filename:name,data:doc.output('blob')}).then(()=>expMsg('PDF gespeichert.')).catch(err=>{
+    const c=err&&err.code;
+    if(c==='declined') expMsg('Speichern abgebrochen.');
+    else if(c==='rate_limited') expMsg('Bitte kurz warten und noch einmal versuchen.');
+    else if(c==='host_unavailable') {expMsg('Diese App kann hier keine Dateien speichern. Öffnen Sie sie im Browser oder nutzen Sie „Als Text kopieren“.');document.getElementById('pdfbtn').hidden=true;}
+    else {expMsg('PDF ist hier nicht verfügbar. Nutzen Sie „Als Text kopieren“.');document.getElementById('pdfbtn').hidden=true;}
+  });
+}
+function copyText(){
+  const txt=result(),box=document.getElementById('expbox');
+  const fallback=()=>{box.value=txt;box.hidden=false;box.focus();box.select();expMsg('Der Text ist markiert. Kopieren Sie ihn mit Strg+C (Mac: Cmd+C).');};
+  box.hidden=true;
+  try{navigator.clipboard.writeText(txt).then(()=>expMsg('Text kopiert. Sie können ihn jetzt einfügen.'),fallback);}catch(e){fallback();}
+}
+function r7(){
+  const s=S();
+  return header(6,'')+
+   `<div class="block"><h3>A · Einleitung</h3><p class="sub">Gattung · Titel · Regie · Erscheinungsjahr · Basissatz mit dem Thema (ohne Handlung, ohne Deutung)</p>
+     <textarea id="einl" data-bind="einl">${esc(s.einl)}</textarea></div>
+    <div class="block"><h3>B · Ihre beiden Argumente als zwei Absätze</h3><p class="sub">Der Bezug zum Gegenpol am Ende des ersten Absatzes leitet zum zweiten über.</p>
+     <div class="row"><button class="btn2" data-act="take1">Argument aus Schritt 4 als Entwurf übernehmen</button></div>
+     <label class="lbl" for="abs1">Absatz 1</label><textarea id="abs1" data-bind="abs1" style="min-height:130px">${esc(s.abs1)}</textarea>
+     <div class="row"><button class="btn2" data-act="take2">Argument aus Schritt 5 als Entwurf übernehmen</button></div>
+     <label class="lbl" for="abs2">Absatz 2</label><textarea id="abs2" data-bind="abs2" style="min-height:130px">${esc(s.abs2)}</textarea></div>
+    <div class="block"><h3>Gesamtergebnis</h3>
+     <p class="sub">So sieht Ihr Export aus. Speichern Sie ihn unten als PDF oder kopieren Sie ihn als Text und geben Sie ihn dort ab, wo Ihre Lehrkraft es möchte.</p>
+     <div class="out" id="out" tabindex="0">${esc(result())}</div></div>`+navHTML();
+}
+
+const R=[r1,r2,r3,r4,r5,r6,r7];
+function render(){
+  renderFigs();renderSteps();
+  document.getElementById('name').value=APP.name||'';
+  document.getElementById('panel').innerHTML=R[APP.step]();
+}
+function setPath(path,val){
+  const parts=path.split('.');let o=S();
+  for(let i=0;i<parts.length-1;i++) o=o[parts[i]];
+  o[parts[parts.length-1]]=val;
+}
+function live(){
+  const h=document.getElementById('hypOut'); if(h) h.textContent=hypSentence();
+  const t=document.getElementById('ttOut'); if(t) t.textContent=buildTT()||'Wählen Sie eine Kategorie und tragen Sie eine Eigenschaft ein.';
+  const o=document.getElementById('out'); if(o) o.textContent=result();
+}
+function appendTo(field,text){
+  const s=S(),cur=s[field].trim();
+  s[field]=cur?cur+' '+text:text;
+  const el=document.getElementById(field); if(el){el.value=s[field];el.focus();el.setSelectionRange(el.value.length,el.value.length);}
+  save();live();
+}
+
+document.addEventListener('input',e=>{
+  const el=e.target;
+  if(el.id==='name'){APP.name=el.value;save();live();return;}
+  const b=el.dataset&&el.dataset.bind; if(!b) return;
+  setPath(b, el.type==='checkbox'?el.checked:el.value);
+  save();
+  if(el.dataset.rerender){S().whyShown=false;render();return;}
+  live();
+});
+document.addEventListener('change',e=>{
+  const el=e.target;
+  if(el.type==='checkbox'&&el.dataset.bind){setPath(el.dataset.bind,el.checked);save();}
+});
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]'); if(!b) return;
+  const a=b.dataset.act,v=b.dataset.v,s=S();
+  switch(a){
+    case 'fig': APP.fig=v;break;
+    case 'go': {const n=+v; if(n<0||n>=STEPS.length) return; APP.step=n; save(); render(); window.scrollTo({top:document.getElementById('steps').offsetTop-8,behavior:'auto'}); return;}
+    case 'cat': {const n=s.notes[b.dataset.l][+b.dataset.i]; n.c=n.c===v?'':v; break;}
+    case 'addnote': s.notes[b.dataset.l].push(blankNote()); break;
+    case 'delnote': {const l=s.notes[b.dataset.l]; l.splice(+b.dataset.i,1); if(!l.length) l.push(blankNote()); break;}
+    case 'opt': {const i=+v,k=s.sel.indexOf(i); if(k>=0) s.sel.splice(k,1); else { if(s.sel.length>=2) s.sel.shift(); s.sel.push(i);} s.checked=false; s.why=''; s.whyShown=false; break;}
+    case 'check': s.checked=true; break;
+    case 'swap': s.swap=!s.swap; break;
+    case 'whyshow': s.whyShown=true; break;
+    case 'fillhyp': {const t=poleText(+v); if(!s.hypA.trim()) s.hypA=t; else if(!s.hypB.trim()) s.hypB=t; else s.hypB=t; break;}
+    case 'pol': s.pol=+v; break;
+    case 'takeTT': {const t=buildTT(); if(t) {s.tt=t;} break;}
+    case 'starter': appendTo(b.dataset.f,v); return;
+    case 'take1': s.abs1=arg1(); break;
+    case 'take2': s.abs2=s.free.trim(); break;
+    case 'copytxt': copyText(); return;
+    case 'pdf': savePDF(); return;
+    case 'reset': document.getElementById('resetzone').innerHTML=`Alle Eingaben zu ${APP.fig} löschen? <button class="btn2" data-act="resetyes">Ja, löschen</button> <button class="link" data-act="resetno">Abbrechen</button>`; return;
+    case 'resetyes': APP.data[APP.fig]=fresh(); APP.step=0; resetZone(); break;
+    case 'resetno': resetZone(); return;
+    default: return;
+  }
+  save(); render();
+});
+function resetZone(){document.getElementById('resetzone').innerHTML='<button class="link" data-act="reset">Eingaben zu dieser Figur löschen</button>';}
+render();
+initExport();
+</script>
+</body>
+</html>
