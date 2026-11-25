@@ -187,7 +187,7 @@ const FIG={
 const NAMES=Object.keys(FIG);
 const blankNote=()=>({t:'',c:''});
 const fresh=()=>({notes:{L:[blankNote(),blankNote(),blankNote()],R:[blankNote(),blankNote(),blankNote()],M:[blankNote(),blankNote(),blankNote()]},
-  sel:[],checked:false,swap:false,why:'',whyText:'',whyShown:false,hypA:'',hypB:'',pol:0,bKat:'',bEig:'',tt:'',beleg:'',bezug:'',free:'',crit:[false,false,false],tips:['','',''],einl:'',abs1:'',abs2:''});
+  guessA:'',guessB:'',cmp:'',sel:[],checked:false,swap:false,why:'',whyText:'',whyShown:false,hypA:'',hypB:'',pol:0,bKat:'',bEig:'',tt:'',beleg:'',bezug:'',free:'',crit:[false,false,false],tips:['','',''],einl:'',abs1:'',abs2:''});
 
 let APP={fig:'Penelope',step:0,name:'',data:{}};
 const KEY='notizzettel-argument-v1';
@@ -237,7 +237,11 @@ function r1(){
   const col=(list,title,sub)=>`<div class="col"><div class="colh">${title}${sub}</div>${s.notes[list].map((n,i)=>noteRow(list,i,n)).join('')}<button class="add" data-act="addnote" data-l="${list}">+ Zeile</button></div>`;
   return header(0,'Tragen Sie Ihre Notizen aus der Waage und Ihre Figurenmerkmale (Aufgabe 2) ein. Ordnen Sie jedem Eintrag eine Kategorie zu.')+
    `<div class="legend">${KAT.map(k=>`<div><b>${k[0]} ${k[1]}</b>${k[2]}</div>`).join('')}</div>
-    <div class="cols">${col('L','Linke Schale',head('L'))}${col('R','Rechte Schale',head('R'))}${col('M','Figurenmerkmale','<small>Eigenschaft und woran erkennbar</small>')}</div>`+navHTML();
+    <div class="cols">${col('L','Linke Schale',head('L'))}${col('R','Rechte Schale',head('R'))}${col('M','Figurenmerkmale','<small>Eigenschaft und woran erkennbar</small>')}</div>
+    <div class="block"><h3>Welche beiden Pole würden Sie aus Ihren Notizen festlegen?</h3>
+     <p class="sub">Je zwei bis vier Wörter, die einen Wunsch oder eine Haltung der Figur ausdrücken. In Schritt 2 überprüfen Sie Ihren Vorschlag.</p>
+     <div class="assign"><div><label class="lbl" for="guessA">Pol links</label><input type="text" id="guessA" data-bind="guessA" value="${esc(s.guessA)}"></div>
+     <div><label class="lbl" for="guessB">Pol rechts</label><input type="text" id="guessB" data-bind="guessB" value="${esc(s.guessB)}"></div></div></div>`+navHTML();
 }
 
 /* Schritt 2 */
@@ -249,7 +253,10 @@ function r2(){
       const pp=polePair();
       fb=`<div class="msg ok"><b>Richtig.</b> Diese beiden Pole bilden zusammen den inneren Konflikt von ${APP.fig}. Ordnen Sie sie Ihren Waagschalen zu:</div>
       <div class="assign"><div><small>Linke Schale</small>${esc(poleText(pp[0]))}</div><div><small>Rechte Schale</small>${esc(poleText(pp[1]))}</div></div>
-      <div class="row"><button class="btn2" data-act="swap">Seiten tauschen</button></div>`;
+      <div class="row"><button class="btn2" data-act="swap">Seiten tauschen</button></div>
+      <div class="block"><h3>Vergleichen Sie mit Ihrem Vorschlag aus Schritt 1</h3>
+       <p class="sub">Was hatten Sie schon getroffen, was fehlte oder war kein Pol?</p>
+       <textarea id="cmp" data-bind="cmp" placeholder="Mein Vorschlag … traf / traf nicht, weil …">${esc(s.cmp)}</textarea></div>`;
     } else {
       const bad=s.sel.filter(i=>f.opts[i].k!=='pol');
       fb=`<div class="msg bad"><b>Noch nicht.</b>${s.sel.length<2?' Wählen Sie genau zwei Möglichkeiten.':''}<ul>${bad.map(i=>`<li><b>${esc(f.opts[i].t)}:</b> ${TYP[f.opts[i].k].replace('{F}',APP.fig)}</li>`).join('')}${s.sel.filter(i=>f.opts[i].k==='pol').map(i=>`<li><b>${esc(f.opts[i].t)}:</b> Das passt.</li>`).join('')}</ul></div>`;
@@ -267,7 +274,9 @@ function r2(){
      <div class="row"><button class="btn2" data-act="whyshow" ${chosen?'':'disabled'}>Mit Erklärung vergleichen</button></div>
      ${s.whyShown&&chosen?`<div class="msg info">${TYP[chosen.k].replace('{F}',APP.fig)}</div>`:''}</div>`;
   }
-  return header(1,`Nur zwei dieser sechs Möglichkeiten bilden zusammen den inneren Konflikt von ${APP.fig}. Wählen Sie sie aus und prüfen Sie Ihre Wahl.`)+
+  const g=(s.guessA.trim()||s.guessB.trim())?`<div class="msg info"><b>Ihr Vorschlag aus Schritt 1:</b> ${esc(s.guessA.trim()||'…')} | ${esc(s.guessB.trim()||'…')}</div>`
+    :`<div class="msg info">Sie haben in Schritt 1 noch keinen Vorschlag für die Pole notiert. <button class="btn2" data-act="go" data-v="0">Zu Schritt 1</button></div>`;
+  return header(1,`Nur zwei dieser sechs Möglichkeiten bilden zusammen den inneren Konflikt von ${APP.fig}. Wählen Sie sie aus und prüfen Sie Ihre Wahl.`)+g+
    `<div class="opts">${f.opts.map((o,i)=>{const on=s.sel.includes(i);const cls=s.checked&&on?(o.k==='pol'?' ok':' bad'):'';return `<button class="opt${cls}" data-act="opt" data-v="${i}" aria-pressed="${on}"><span class="box">${on?'✓':''}</span>${esc(o.t)}</button>`}).join('')}</div>
     <div class="row"><button class="btn" data-act="check">Wahl prüfen</button></div>${fb}${why}`+navHTML();
 }
@@ -367,8 +376,10 @@ function exportModel(){
   const side=k=>ok?` (${poleText(pp[k])})`:'';
   const secs=[];
   secs.push({h:'Schritt 1 · Notizen',items:[
-    {l:'Linke Schale'+side(0),list:nl('L')},{l:'Rechte Schale'+side(1),list:nl('R')},{l:'Figurenmerkmale',list:nl('M')}]});
+    {l:'Linke Schale'+side(0),list:nl('L')},{l:'Rechte Schale'+side(1),list:nl('R')},{l:'Figurenmerkmale',list:nl('M')},
+    {l:'Mein Vorschlag für die Pole',t:`${val(s.guessA)} | ${val(s.guessB)}`}]});
   const st2=[{l:'Pole',t:ok?`${poleText(pp[0])} | ${poleText(pp[1])}`:'noch nicht gelöst'}];
+  if(ok) st2.push({l:'Vergleich mit meinem Vorschlag',t:val(s.cmp)});
   if(ok&&s.why!=='') st2.push({l:`Kein Pol: ${f.opts[+s.why].t}`,t:val(s.whyText)});
   secs.push({h:'Schritt 2 · Pole',items:st2});
   secs.push({h:'Schritt 3 · Deutungshypothese',items:[{t:hypSentence()}]});
