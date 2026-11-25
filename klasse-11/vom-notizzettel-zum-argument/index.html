@@ -282,14 +282,14 @@ function r2(){
 }
 
 /* Schritt 3 */
-function hypSentence(){const s=S();return `${APP.fig} ist geprägt durch den Widerspruch zwischen einerseits ${s.hypA||'…'} und andererseits ${s.hypB||'…'}.`;}
+function hypSentence(){const s=S();return `${APP.fig} ist geprägt durch den Widerspruch zwischen ${s.hypA||'…'} einerseits und ${s.hypB||'…'} andererseits.`;}
 function r3(){
   const s=S(),ok=solved(),pp=polePair();
   return header(2,'Setzen Sie Ihre beiden Pole in das Satzgerüst ein. Sie können sie dabei grammatisch anpassen, zum Beispiel „ihrem Anspruch auf …“.')+
-   `<div class="hyp"><b>${APP.fig}</b> ist geprägt durch den Widerspruch zwischen <b>einerseits</b>
-     <input type="text" id="hypA" data-bind="hypA" value="${esc(s.hypA)}" aria-label="erster Pol" placeholder="erster Pol"> und <b>andererseits</b>
-     <input type="text" id="hypB" data-bind="hypB" value="${esc(s.hypB)}" aria-label="zweiter Pol" placeholder="zweiter Pol">.</div>
-    <p class="sub">Gleichwertige Verknüpfung: <b>zum einen</b> … <b>zum anderen</b>. Merken Sie sich beide Paare für die Schulaufgabe.</p>
+   `<div class="hyp"><b>${APP.fig}</b> ist geprägt durch den Widerspruch zwischen
+     <input type="text" id="hypA" data-bind="hypA" value="${esc(s.hypA)}" aria-label="erster Pol" placeholder="erster Pol"> <b>einerseits</b> und
+     <input type="text" id="hypB" data-bind="hypB" value="${esc(s.hypB)}" aria-label="zweiter Pol" placeholder="zweiter Pol"> <b>andererseits</b>.</div>
+    <p class="sub">Ohne „zwischen“ geht auch: „Zum einen will …, zum anderen …“. Merken Sie sich beide Paare für die Schulaufgabe.</p>
     ${ok?`<div class="row"><span class="sub">Ihre Pole einsetzen:</span>${pp.map(i=>`<button class="starter" data-act="fillhyp" data-v="${i}">${esc(poleText(i))}</button>`).join('')}</div>`:needSolved()}
     <div class="preview"><span class="lbl">Ihre Deutungshypothese</span><span id="hypOut">${esc(hypSentence())}</span></div>`+navHTML();
 }
